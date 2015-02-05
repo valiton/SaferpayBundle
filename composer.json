@@ -18,8 +18,8 @@
         "payment/saferpay": "3.0.*"
     },
     "autoload": {
-        "psr-0": { "Valiton\\Bundle\\SaferpayBundle": "" }
+        "psr-0": { "Valiton\\Payment\\SaferpayBundle": "" }
     },
-    "target-dir": "Valiton/Bundle/SaferpayBundle"
+    "target-dir": "Valiton/Payment/SaferpayBundle"
 }
 
