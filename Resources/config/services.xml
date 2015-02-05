@@ -1,0 +1,48 @@
+<?xml version="1.0" ?>
+
+<container xmlns="http://symfony.com/schema/dic/services"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xsi:schemaLocation="http://symfony.com/schema/dic/services http://symfony.com/schema/dic/services/services-1.0.xsd">
+
+    <parameters>
+        <parameter key="valiton_payment_saferpay.authentication_strategy.token.class">Valiton\Payment\SaferpayBundle\Client\Authentication\TokenAuthenticationStrategy</parameter>
+        <parameter key="valiton_payment_saferpay.client.class">Valiton\Payment\SaferpayBundle\Client\Client</parameter>
+        <parameter key="valiton_payment_saferpay.saferpay_plugin.class">Valiton\Payment\SaferpayBundle\Plugin\SaferpayPlugin</parameter>
+        <parameter key="valiton_payment_saferpay.guzzle_client.class">Payment\HttpClient\GuzzleClient</parameter>
+    </parameters>
+
+    <services>
+
+        <service id="valiton_payment_saferpay.guzzle_client" class="%valiton_payment_saferpay.guzzle_client.class%" public="false" />
+
+        <service id="valiton_payment_saferpay.authentication_strategy.token" class="%valiton_payment_saferpay.authentication_strategy.token.class%">
+            <argument>%valiton_payment_saferpay.account%</argument>
+            <argument>%valiton_payment_saferpay.password%</argument>
+        </service>
+        <service id="valiton_payment_saferpay.authentication_strategy" alias="valiton_payment_saferpay.authentication_strategy.token" />
+
+        <service id="valiton_payment_saferpay.client" class="%valiton_payment_saferpay.client.class%">
+            <argument type="service" id="valiton_payment_saferpay.authentication_strategy" />
+            <argument type="service" id="valiton_payment_saferpay.guzzle_client" />
+            <call method="setLogger">
+                <argument type="service" id="logger" />
+            </call>
+            <tag name="monolog.logger" channel="payment" />
+        </service>
+
+        <service id="valiton_payment_saferpay.saferpay_plugin" class="%valiton_payment_saferpay.saferpay_plugin.class%">
+            <argument type="service" id="valiton_payment_saferpay.client" />
+            <argument>%valiton_payment_saferpay.return_url%</argument>
+            <argument>%valiton_payment_saferpay.error_url%</argument>
+            <argument>%valiton_payment_saferpay.cancel_url%</argument>
+            <!-- Note: Inject request to enable fetching saferpay response sending to redirect url directly
+                In Symfony 2.4 we have to inject request stack -->
+            <call method="setRequest">
+                <argument type="service" id="request" on-invalid="null" strict="false" />
+            </call>
+            <tag name="payment.plugin" />
+        </service>
+
+    </services>
+
+</container>
