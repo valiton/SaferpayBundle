@@ -2,7 +2,7 @@
     "name": "valiton/saferpay-bundle",
     "description": "Symfony2 bundle for providing access to Saferpay. This is an extension to the JMSCorePaymentBundle.",
     "type": "symfony-bundle",
-    "keywords": ["payment","saferpay"]
+    "keywords": ["payment","saferpay"],
     "minimum-stability": "dev",
     "license": "MIT",
     "authors": [
