@@ -6,9 +6,9 @@ use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\FormBuilderInterface;
 
 /**
- * Type for Paypal Express Checkout.
+ * Type for Saferpay Checkout.
  *
- * @author Johannes M. Schmitt <schmittjoh@gmail.com>
+ * @author Oliver Milanovic <milanovic.oliver@gmail.com>
  */
 class SaferpayType extends AbstractType
 {
