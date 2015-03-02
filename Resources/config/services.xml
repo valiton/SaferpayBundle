@@ -9,6 +9,7 @@
         <parameter key="valiton_payment_saferpay.client.class">Valiton\Payment\SaferpayBundle\Client\Client</parameter>
         <parameter key="valiton_payment_saferpay.saferpay_plugin.class">Valiton\Payment\SaferpayBundle\Plugin\SaferpayPlugin</parameter>
         <parameter key="valiton_payment_saferpay.guzzle_client.class">Payment\HttpClient\GuzzleClient</parameter>
+        <parameter key="valiton_payment_saferpay.form.valiton_payment_saferpay_type.class">Valiton\Payment\SaferpayBundle\Form\SaferpayType</parameter>
     </parameters>
 
     <services>
@@ -41,6 +42,11 @@
                 <argument type="service" id="request" on-invalid="null" strict="false" />
             </call>
             <tag name="payment.plugin" />
+        </service>
+
+        <service id="valiton_payment_saferpay.form.valiton_payment_saferpay_type" class="%valiton_payment_saferpay.form.valiton_payment_saferpay_type.class%">
+            <tag name="payment.method_form_type" />
+            <tag name="form.type" alias="saferpay" />
         </service>
 
     </services>
