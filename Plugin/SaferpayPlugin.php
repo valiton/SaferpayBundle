@@ -9,6 +9,7 @@ use Payment\Saferpay\Data\PayConfirmParameter;
 use Payment\Saferpay\Data\PayConfirmParameterInterface;
 use Payment\Saferpay\Data\PayInitParameterInterface;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\Security\Core\Util\SecureRandom;
 use JMS\Payment\CoreBundle\Model\ExtendedDataInterface;
 use JMS\Payment\CoreBundle\Model\FinancialTransactionInterface;
 use JMS\Payment\CoreBundle\Model\PaymentInstructionInterface;
@@ -51,6 +52,16 @@ class SaferpayPlugin extends AbstractPlugin
     protected $cancelUrl;
 
     /**
+     * @var string
+     */
+    protected $cardrefid;
+
+    /**
+     * @var string|null
+     */
+    protected $cardrefidPrefix;
+
+    /**
      * @var Request
      */
     protected $request;
@@ -62,13 +73,17 @@ class SaferpayPlugin extends AbstractPlugin
      * @param string $returnUrl
      * @param string $errorUrl
      * @param string $cancelUrl
+     * @param $cardrefid
+     * @param $cardrefidPrefix
      */
-    public function __construct(Client $client, $returnUrl, $errorUrl, $cancelUrl)
+    public function __construct(Client $client, $returnUrl, $errorUrl, $cancelUrl, $cardrefid, $cardrefidPrefix)
     {
         $this->client = $client;
         $this->returnUrl = $returnUrl;
         $this->errorUrl = $errorUrl;
         $this->cancelUrl = $cancelUrl;
+        $this->cardrefid = $cardrefid;
+        $this->cardrefidPrefix = $cardrefidPrefix;
     }
 
     /**
@@ -212,7 +227,17 @@ class SaferpayPlugin extends AbstractPlugin
         $payInitParameter->setFaillink($this->getErrorUrl($data));
         $payInitParameter->setAmount(SaferpayFormatHelper::formatAmount($transaction->getRequestedAmount()));
         $payInitParameter->setCurrency($paymentInstruction->getCurrency());
-        $payInitParameter->setCardrefid('new');
+        if ($this->cardrefid === 'random') {
+            $random = new SecureRandom();
+            if ($this->cardrefidPrefix === null) {
+                $cardrefid = bin2hex($random->nextBytes(20));
+            } else {
+                $cardrefid = $this->cardrefidPrefix . '_' . bin2hex($random->nextBytes((int)19 - strlen($this->cardrefidPrefix) / 2));
+            }
+        } else {
+            $cardrefid = 'new';
+        }
+        $payInitParameter->setCardrefid($cardrefid);
         foreach ($checkoutParameters as $field => $value) {
             $payInitParameter->set($field, $value);
         }
