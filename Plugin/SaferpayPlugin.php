@@ -62,6 +62,11 @@ class SaferpayPlugin extends AbstractPlugin
     protected $cardrefidPrefix;
 
     /**
+     * @var int
+     */
+    protected $cardrefidLength;
+
+    /**
      * @var Request
      */
     protected $request;
@@ -75,8 +80,9 @@ class SaferpayPlugin extends AbstractPlugin
      * @param string $cancelUrl
      * @param $cardrefid
      * @param $cardrefidPrefix
+     * @param $cardrefidLength
      */
-    public function __construct(Client $client, $returnUrl, $errorUrl, $cancelUrl, $cardrefid, $cardrefidPrefix)
+    public function __construct(Client $client, $returnUrl, $errorUrl, $cancelUrl, $cardrefid, $cardrefidPrefix, $cardrefidLength)
     {
         $this->client = $client;
         $this->returnUrl = $returnUrl;
@@ -84,6 +90,7 @@ class SaferpayPlugin extends AbstractPlugin
         $this->cancelUrl = $cancelUrl;
         $this->cardrefid = $cardrefid;
         $this->cardrefidPrefix = $cardrefidPrefix;
+        $this->cardrefidLength = min(40, $cardrefidLength);
     }
 
     /**
@@ -229,11 +236,11 @@ class SaferpayPlugin extends AbstractPlugin
         $payInitParameter->setCurrency($paymentInstruction->getCurrency());
         if ($this->cardrefid === 'random') {
             $random = new SecureRandom();
-            if ($this->cardrefidPrefix === null) {
-                $cardrefid = bin2hex($random->nextBytes(20));
-            } else {
-                $cardrefid = $this->cardrefidPrefix . '_' . bin2hex($random->nextBytes((int)19 - strlen($this->cardrefidPrefix) / 2));
+            $cardrefid = bin2hex($random->nextBytes(20));
+            if ($this->cardrefidPrefix !== null) {
+                $cardrefid = sprintf('%s%s', $this->cardrefidPrefix, $cardrefid);
             }
+            $cardrefid = substr($cardrefid, 0, $this->cardrefidLength);
         } else {
             $cardrefid = 'new';
         }

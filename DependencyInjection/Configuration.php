@@ -27,6 +27,7 @@ class Configuration implements ConfigurationInterface
                 ->scalarNode('cancel_url')->defaultNull()->end()
                 ->enumNode('cardrefid')->values(array('new', 'random'))->defaultValue('new')->end()
                 ->scalarNode('cardrefid_prefix')->defaultNull()->end()
+                ->scalarNode('cardrefid_length')->defaultValue(40)->end()
             ->end()
         ;
         return $treeBuilder;
