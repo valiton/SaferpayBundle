@@ -120,10 +120,9 @@ class SaferpayPlugin extends AbstractPlugin
         $data = $transaction->getExtendedData();
         $payInitParameter = $this->createPayInitParameter($transaction);
 
-        if ($this->getRequest()->query->has(Client::PAY_INIT_PARAM_DATA) && $this->getRequest()->query->has(Client::PAY_INIT_PARAM_SIGNATURE)) {
-
+        if ($transaction->getTrackingId()) {
             try {
-                $payConfirmParameter = $this->client->verifyPayConfirm($this->getRequest()->query->get(Client::PAY_INIT_PARAM_DATA), $this->getRequest()->query->get(Client::PAY_INIT_PARAM_SIGNATURE));
+                $payConfirmParameter = $this->client->verifyPayConfirm($transaction);
                 $this->throwUnlessValidPayConfirm($payConfirmParameter, $payInitParameter);
 
             } catch(\Exception $e) {
@@ -140,7 +139,7 @@ class SaferpayPlugin extends AbstractPlugin
             }
 
         } else {
-            $url = $this->client->createPayInit($payInitParameter);
+            $url = $this->client->createPayInit($payInitParameter, $transaction);
 
             $actionRequest = new ActionRequiredException('User has not yet authorized the transaction.');
             $actionRequest->setFinancialTransaction($transaction);
@@ -292,8 +291,8 @@ class SaferpayPlugin extends AbstractPlugin
      */
     protected function throwUnlessSuccessPayComplete(PayCompleteResponse $payCompleteResponse)
     {
-        if ($payCompleteResponse->getResult() != '0') {
-            // Payment was not successfully
+        if ($payCompleteResponse->getResult() != '200') {
+            // Payment was not successful
             throw new \Exception($payCompleteResponse->getMessage());
         }
     }

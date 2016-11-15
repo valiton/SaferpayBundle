@@ -6,25 +6,45 @@
 
     <parameters>
         <parameter key="valiton_payment_saferpay.authentication_strategy.token.class">Valiton\Payment\SaferpayBundle\Client\Authentication\TokenAuthenticationStrategy</parameter>
+        <parameter key="valiton_payment_saferpay.authentication_strategy.json.class">Valiton\Payment\SaferpayBundle\Client\Authentication\JsonAuthenticationStrategy</parameter>
         <parameter key="valiton_payment_saferpay.client.class">Valiton\Payment\SaferpayBundle\Client\Client</parameter>
         <parameter key="valiton_payment_saferpay.saferpay_plugin.class">Valiton\Payment\SaferpayBundle\Plugin\SaferpayPlugin</parameter>
-        <parameter key="valiton_payment_saferpay.guzzle_client.class">Payment\HttpClient\GuzzleClient</parameter>
         <parameter key="valiton_payment_saferpay.form.valiton_payment_saferpay_type.class">Valiton\Payment\SaferpayBundle\Form\SaferpayType</parameter>
+        <parameter key="valiton_payment_saferpay.saferpayjsonobjhelper.class">Valiton\Payment\SaferpayBundle\Client\SaferpayJsonObjHelper</parameter>
+        <parameter key="valiton_payment_saferpay.jsonapi.baseurl">https://www.saferpay.com/api/Payment/v1</parameter>
+        <parameter key="valiton_payment_saferpay.jsonapi.baseurl.test">https://test.saferpay.com/api/Payment/v1</parameter>
+        <parameter key="valiton_payment_saferpay.jsonapi.paymentpage.initialize">/PaymentPage/Initialize</parameter>
+        <parameter key="valiton_payment_saferpay.jsonapi.paymentpage.assert">/PaymentPage/Assert</parameter>
+        <parameter key="valiton_payment_saferpay.jsonapi.transaction.capture">/Transaction/Capture</parameter>
+        <parameter key="valiton_payment_saferpay.jsonapi.contenttypeheader">application/json; charset=UTF-8</parameter>
+        <parameter key="valiton_payment_saferpay.jsonapi.acceptheader">application/json</parameter>
     </parameters>
 
     <services>
 
-        <service id="valiton_payment_saferpay.guzzle_client" class="%valiton_payment_saferpay.guzzle_client.class%" public="false" />
-
-        <service id="valiton_payment_saferpay.authentication_strategy.token" class="%valiton_payment_saferpay.authentication_strategy.token.class%">
+        <service id="valiton_payment_saferpay.authentication_strategy.json" class="%valiton_payment_saferpay.authentication_strategy.json.class%">
             <argument>%valiton_payment_saferpay.account%</argument>
-            <argument>%valiton_payment_saferpay.password%</argument>
+            <argument>%valiton_payment_saferpay.jsonapi_key%</argument>
+            <argument>%valiton_payment_saferpay.jsonapi_pwd%</argument>
         </service>
-        <service id="valiton_payment_saferpay.authentication_strategy" alias="valiton_payment_saferpay.authentication_strategy.token" />
+        <service id="valiton_payment_saferpay.authentication_strategy" alias="valiton_payment_saferpay.authentication_strategy.json" />
+
+        <service id="valiton_payment_saferpay.saferpayjsonobjhelper" class="%valiton_payment_saferpay.saferpayjsonobjhelper.class%">
+            <argument type="service" id="valiton_payment_saferpay.authentication_strategy" />
+
+            <argument type="string">%valiton_payment_saferpay.jsonapi.baseurl.test%</argument>
+            <argument type="string">%valiton_payment_saferpay.jsonapi.paymentpage.initialize%</argument>
+            <argument type="string">%valiton_payment_saferpay.jsonapi.paymentpage.assert%</argument>
+            <argument type="string">%valiton_payment_saferpay.jsonapi.transaction.capture%</argument>
+
+            <argument type="string">%valiton_payment_saferpay.jsonapi.contenttypeheader%</argument>
+            <argument type="string">%valiton_payment_saferpay.jsonapi.acceptheader%</argument>
+        </service>
 
         <service id="valiton_payment_saferpay.client" class="%valiton_payment_saferpay.client.class%">
             <argument type="service" id="valiton_payment_saferpay.authentication_strategy" />
-            <argument type="service" id="valiton_payment_saferpay.guzzle_client" />
+            <argument type="service" id="valiton_payment_saferpay.saferpayjsonobjhelper" />
+
             <call method="setLogger">
                 <argument type="service" id="logger" />
             </call>

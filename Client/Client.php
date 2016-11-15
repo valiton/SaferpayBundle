@@ -2,15 +2,16 @@
 
 namespace Valiton\Payment\SaferpayBundle\Client;
 
-use Payment\HttpClient\HttpClientInterface;
+
+use JMS\Payment\CoreBundle\Model\FinancialTransactionInterface;
 use Payment\Saferpay\Data\Collection\CollectionItemInterface;
 use Payment\Saferpay\Data\PayCompleteParameter;
-use Payment\Saferpay\Data\PayCompleteParameterInterface;
 use Payment\Saferpay\Data\PayCompleteResponse;
 use Payment\Saferpay\Data\PayConfirmParameter;
 use Payment\Saferpay\Data\PayInitParameterWithDataInterface;
 use Psr\Log\LoggerInterface;
 use Valiton\Payment\SaferpayBundle\Client\Authentication\AuthenticationStrategyInterface;
+
 
 /**
  * Client - inspeared by Payment\Saferpay\Saferpay class
@@ -37,73 +38,73 @@ class Client
     protected $authenticationStrategy;
 
     /**
-     * @var HttpClientInterface
-     */
-    protected $httpClient;
-
-    /**
      * @var LoggerInterface
      */
     protected $logger;
 
     /**
-     * Constructor
-     *
-     * @param AuthenticationStrategyInterface $authenticationStrategy
-     * @param HttpClientInterface $httpClient
+     * @var SaferpayDataHelperInterface
      */
-    public function __construct(AuthenticationStrategyInterface $authenticationStrategy, HttpClientInterface $httpClient)
+    protected $saferpayDataHelper;
+
+
+
+    /**
+     * Client constructor.
+     * @param AuthenticationStrategyInterface $authenticationStrategy
+     * @param SaferpayDataHelperInterface $saferpayDataHelper
+     */
+    public function __construct(AuthenticationStrategyInterface $authenticationStrategy,
+                                SaferpayDataHelperInterface $saferpayDataHelper)
     {
         $this->authenticationStrategy = $authenticationStrategy;
-        $this->httpClient = $httpClient;
+        $this->saferpayDataHelper = $saferpayDataHelper;
     }
 
     /**
      * Create payment init
      *
-     * @param  CollectionItemInterface $payInitParameter
+     * @param CollectionItemInterface $payInitParameter
+     * @param FinancialTransactionInterface $transaction
      * @return PayConfirmParameter
      */
-    public function createPayInit(CollectionItemInterface $payInitParameter)
+    public function createPayInit(CollectionItemInterface $payInitParameter, FinancialTransactionInterface $transaction)
     {
-        return $this->sendApiRequest($payInitParameter->getRequestUrl(), $payInitParameter->getData());
+        $data = $payInitParameter->getData();
+        $requestData = $this->saferpayDataHelper->buildPayInitObj($data);
+
+        $response = $this->sendApiRequest($this->saferpayDataHelper->getPayInitUrl(), $requestData);
+        $responseData = $this->saferpayDataHelper->getDataFromResponse($response);
+
+        // use field TrackingId to keep track of the returned Token
+        $transaction->setTrackingId($responseData['Token']);
+
+        return $responseData['RedirectUrl'];
     }
 
     /**
      * Verify payment confirm
      *
-     * @param string $xml
-     * @param string $signature
+     * @param FinancialTransactionInterface $transaction
      * @param  CollectionItemInterface $payConfirmParameter
      * @return CollectionItemInterface
      */
-    public function verifyPayConfirm($xml, $signature, CollectionItemInterface $payConfirmParameter = null)
+    public function verifyPayConfirm(FinancialTransactionInterface $transaction, CollectionItemInterface $payConfirmParameter = null)
     {
+        $requestData = $this->saferpayDataHelper->buildPayConfirmObj($transaction->getTrackingId());
+
+        $response = $this->sendApiRequest($this->saferpayDataHelper->getPayConfirmUrl(), $requestData);
+        $responseData = $this->saferpayDataHelper->getDataFromResponse($response);
+
         if (null == $payConfirmParameter) {
             $payConfirmParameter = new PayConfirmParameter();
         }
-        $this->fillDataFromXML($payConfirmParameter, $xml);
-        $response = $this->sendApiRequest($payConfirmParameter->getRequestUrl(), array(
-            self::PAY_INIT_PARAM_DATA => $xml,
-            self::PAY_INIT_PARAM_SIGNATURE => $signature
-        ));
 
-        $status = self::VERIFY_PAY_PARAM_STATUS_ERROR;
-        $parameterOrMessage = 'Invalid';
-        if (null != $response && false !== $responseFields = explode(':', $response, 2)) {
-            if (count($responseFields) == 2) {
-                list($status, $parameterOrMessage) = $responseFields;
-                if (self::VERIFY_PAY_PARAM_STATUS_OK == $status) {
-                    parse_str($parameterOrMessage, $parameters);
-                    foreach($parameters as $field => $value) {
-                        $payConfirmParameter->set($field, $value);
-                    }
-                }
-            }
-        }
-        if (self::VERIFY_PAY_PARAM_STATUS_ERROR == $status) {
-            throw new \Exception($parameterOrMessage);
-        }
+        $payConfirmParameter->set('ID',$responseData["Transaction"]["Id"] );
+        $payConfirmParameter->set('AMOUNT',$responseData["Transaction"]["Amount"]["Value"] );
+        $payConfirmParameter->set('CURRENCY',$responseData["Transaction"]["Amount"]["CurrencyCode"] );
+        $payConfirmParameter->set('TOKEN', $transaction->getTrackingId());
+        $payConfirmParameter->set('CARDREFID', $responseData["PaymentMeans"]["DisplayText"]);
 
         return $payConfirmParameter;
     }
@@ -112,7 +113,6 @@ class Client
      * Pay complete v2
      *
      * @param  CollectionItemInterface            $payConfirmParameter
-     * @param  string                             $action
      * @param  CollectionItemInterface            $payCompleteParameter
      * @param  CollectionItemInterface            $payCompleteResponse
      * @return CollectionItemInterface
@@ -120,7 +120,6 @@ class Client
      */
     public function payCompleteV2(
         CollectionItemInterface $payConfirmParameter,
-        $action = PayCompleteParameterInterface::ACTION_SETTLEMENT,
         CollectionItemInterface $payCompleteParameter = null,
         CollectionItemInterface $payCompleteResponse = null
     ) {
@@ -134,15 +133,16 @@ class Client
         }
         $payCompleteParameter->set(self::PAY_CONFIRM_PARAM_ID, $payConfirmParameter->get(self::PAY_CONFIRM_PARAM_ID));
         $payCompleteParameter->set(self::PAY_CONFIRM_PARAM_AMOUNT, $payConfirmParameter->get(self::PAY_CONFIRM_PARAM_AMOUNT));
-        $payCompleteParameter->set(self::PAY_CONFIRM_PARAM_ACTION, $action);
 
-        $payCompleteParameterData = $payCompleteParameter->getData();
-        $response = $this->sendApiRequest($payCompleteParameter->getRequestUrl(), $payCompleteParameterData, true);
+        $requestData = $this->saferpayDataHelper->buildPayCompleteObj($payCompleteParameter->getId());
+
+        $response = $this->sendApiRequest($this->saferpayDataHelper->getPayCompleteUrl(), $requestData);
 
         if (null == $payCompleteResponse) {
             $payCompleteResponse = new PayCompleteResponse();
         }
-        $this->fillDataFromXML($payCompleteResponse, substr($response, 3));
+
+        $payCompleteResponse->setResult($response->getStatusCode());
 
         return $payCompleteResponse;
     }
@@ -150,64 +150,36 @@ class Client
     /**
      * Send api request
      *
-     * @param $url
-     * @param array $data
-     * @param bool $withPassword
-     * @return mixed
+     * @param string $url
+     * @param string $data
+     * @return \Guzzle\Http\Message\Response
      * @throws \Exception
      */
-    protected function sendApiRequest($url, array $data, $withPassword = false)
+    protected function sendApiRequest($url, $data)
     {
-        $this->authenticationStrategy->authenticate($data, $withPassword);
-
-        $data = http_build_query($data);
-
         $this->getLogger()->debug($url);
         $this->getLogger()->debug($data);
 
-        $response = $this->httpClient->request(
-            'POST',
-            $url,
-            $data,
-            array('Content-Type' => 'application/x-www-form-urlencoded')
-        );
+        $client = new \Guzzle\Http\Client();
+        $client->setBaseUrl($url);
+        $client->setDefaultOption('exceptions', false);
 
-        $this->getLogger()->debug($response->getContent());
+        $request = $client->post();
+        $request->setHeaders($this->saferpayDataHelper->getNecessaryRequestHeaders());
+        $this->authenticationStrategy->authenticate($request);
+        $request->setBody($data);
+
+        $response = $request->send();
+
+        $this->getLogger()->debug((string) $response->getBody());
 
         if ($response->getStatusCode() != 200) {
-            $this->getLogger()->critical('Saferpay: request failed with statuscode: {statuscode}!', array('statuscode' => $response->getStatusCode()));
-            throw new \Exception('Saferpay: request failed with statuscode: ' . $response->getStatusCode() . '!');
+            $errorInfo = $this->saferpayDataHelper->tryGetErrorInfoFromResponse($response);
+            $this->getLogger()->critical('Saferpay: request failed with statuscode: ' . $response->getStatusCode() . '! ' . $errorInfo);
+            throw new \Exception('Saferpay: request failed with statuscode: ' . $response->getStatusCode() . '! ' . $errorInfo);
         }
 
-        if (strpos($response->getContent(), 'ERROR') !== false) {
-            $this->getLogger()->critical('Saferpay: request failed: {content}!', array('content' => $response->getContent()));
-            throw new \Exception('Saferpay: request failed: ' . $response->getContent() . '!');
-        }
-
-        return $response->getContent();
-    }
-
-    /**
-     * Fill data from XML
-     *
-     * @param CollectionItemInterface $data
-     * @param $xml
-     * @throws \Exception
-     */
-    protected function fillDataFromXML(CollectionItemInterface $data, $xml)
-    {
-        $document = new \DOMDocument();
-        $fragment = $document->createDocumentFragment();
-
-        if (!$fragment->appendXML($xml)) {
-            $this->getLogger()->critical('Saferpay: Invalid xml received from saferpay');
-            throw new \Exception('Saferpay: Invalid xml received from saferpay!');
-        }
-
-        foreach ($fragment->firstChild->attributes as $attribute) {
-            /** @var \DOMAttr $attribute */
-            $data->set($attribute->nodeName, $attribute->nodeValue);
-        }
+        return $response;
     }
 
     /**

@@ -1,0 +1,257 @@
+<?php
+/**
+ * Created by PhpStorm.
+ * User: d437861
+ * Date: 10.11.16
+ * Time: 13:59
+ */
+
+namespace Valiton\Payment\SaferpayBundle\Client;
+
+
+use Valiton\Payment\SaferpayBundle\Client\Authentication\JsonAuthenticationStrategy;
+use Guzzle\Http\Message\Response;
+use Faker\Provider\Uuid;
+
+/**
+ * Class SaferpayJsonObjHelper
+ * Builds JSON encoded arrays according to http://saferpay.github.io/jsonapi/
+ *
+ * @package Valiton\Payment\SaferpayBundle\Client
+ */
+class SaferpayJsonObjHelper implements SaferpayDataHelperInterface
+{
+    const SPEC_VERSION = '1.4';
+    const RETRY_INDICATOR = 0;
+
+    /**
+     * @var JsonAuthenticationStrategy
+     */
+    protected $authenticationStrategy;
+
+    /**
+     * @var string
+     */
+    protected $paymentPageInitializeUrl;
+
+    /**
+     * @var string
+     */
+    protected $paymentPageAssertUrl;
+
+    /**
+     * @var string
+     */
+    protected $transactionCaptureUrl;
+
+    /**
+     * @var string
+     */
+    protected $contentTypeHeader;
+
+    /**
+     * @var string
+     */
+    protected $acceptHeader;
+
+    /**
+     * SaferpayJsonObjHelper constructor.
+     * @param JsonAuthenticationStrategy $authenticationStrategy
+     * @param string $baseUrl
+     * @param string $paymentPageInitializeUrl
+     * @param string $paymentPageAssertUrl
+     * @param string $transactionCaptureUrl
+     * @param string $contentTypeHeader
+     * @param string $acceptHeader
+     */
+    function __construct(JsonAuthenticationStrategy $authenticationStrategy,
+                         $baseUrl,
+                         $paymentPageInitializeUrl,
+                         $paymentPageAssertUrl,
+                         $transactionCaptureUrl,
+                         $contentTypeHeader,
+                         $acceptHeader)
+    {
+        $this->authenticationStrategy = $authenticationStrategy;
+        $this->paymentPageInitializeUrl = $baseUrl . $paymentPageInitializeUrl;
+        $this->paymentPageAssertUrl = $baseUrl . $paymentPageAssertUrl;
+        $this->transactionCaptureUrl = $baseUrl . $transactionCaptureUrl;
+        $this->contentTypeHeader = $contentTypeHeader;
+        $this->acceptHeader = $acceptHeader;
+    }
+
+    /**
+     * @param array $data
+     * @return string
+     */
+    public function buildPayInitObj(array $data)
+    {
+        return $this->buildPaymentPageInitializeObj($data);
+    }
+
+    /**
+     * @param string $token
+     * @return string
+     */
+    public function buildPayConfirmObj($token)
+    {
+        return $this->buildPaymentPageAssertObj($token);
+    }
+
+    /**
+     * @param string $transactionId
+     * @return string
+     */
+    public function buildPayCompleteObj($transactionId)
+    {
+        return $this->buildTransactionCaptureObj($transactionId);
+    }
+
+    /**
+     * @param Response $response
+     * @return array
+     */
+    public function getDataFromResponse(Response $response)
+    {
+        return json_decode($response->getBody(), true);
+    }
+
+    /**
+     * @param Response $response
+     * @return string
+     */
+    public function tryGetErrorInfoFromResponse(Response $response)
+    {
+        $errorInfo = "";
+        if (strtolower($response->getContentType()) == strtolower($this->contentTypeHeader))
+        {
+            $responseData = $this->getDataFromResponse($response);
+            $errorInfo = 'ErrorName: ' . $responseData['ErrorName'] . ' ErrorMessage: ' . $responseData['ErrorMessage'];
+            if (array_key_exists('ErrorDetail', $responseData))
+            {
+                $errorInfo .= ' ErrorDetail:';
+                foreach ($responseData['ErrorDetail'] as $detail)
+                {
+                    $errorInfo .= ' ' . $detail;
+                }
+            }
+        }
+        return $errorInfo;
+    }
+
+    /**
+     * @return string
+     */
+    public function getPayInitUrl()
+    {
+        return $this->paymentPageInitializeUrl;
+    }
+
+    /**
+     * @return string
+     */
+    public function getPayConfirmUrl()
+    {
+        return $this->paymentPageAssertUrl;
+    }
+
+    /**
+     * @return string
+     */
+    public function getPayCompleteUrl()
+    {
+        return $this->transactionCaptureUrl;
+    }
+
+
+    /**
+     * @return array
+     */
+    public function getNecessaryRequestHeaders()
+    {
+        return array(
+            'Content-Type' => $this->contentTypeHeader,
+            'Accept' => $this->acceptHeader
+        );
+    }
+
+    /**
+     * @param array $data
+     * @return string
+     */
+    protected function buildPaymentPageInitializeObj(array $data)
+    {
+        $jsonData = json_encode(array(
+            'RequestHeader' => $this->buildRequestHeader(),
+
+            'TerminalId' => $this->authenticationStrategy->getTerminalId(),
+
+            'Payment' => array(
+                'Amount' => array(
+                    'Value' => $data['AMOUNT'],
+                    'CurrencyCode' => $data['CURRENCY']
+                ),
+
+                'OrderId' => $data['ORDERID'], // optional
+                'Description' => $data['DESCRIPTION']
+            ),
+
+            'ReturnUrls' => array(
+                'Success' => $data['SUCCESSLINK'],
+                'Fail' => $data['FAILLINK'],
+                'Abort' => $data['BACKLINK'] // optional
+            ),
+
+            // optional
+            'Payer' => array(
+                'LanguageCode' => $data['LANGID']
+            )
+        ));
+
+        return $jsonData;
+    }
+
+    /**
+     * @param string $token
+     * @return string
+     */
+    protected function buildPaymentPageAssertObj($token)
+    {
+        $jsonData = json_encode(array(
+            'RequestHeader' => $this->buildRequestHeader(),
+            'Token' => $token
+        ));
+
+        return $jsonData;
+    }
+
+    /**
+     * @param string $transactionId
+     * @return string
+     */
+    protected function buildTransactionCaptureObj($transactionId)
+    {
+        $jsonData = json_encode(array(
+            'RequestHeader' => $this->buildRequestHeader(),
+            "TransactionReference" => array(
+                // user either TransactionId or OrderId to reference the transaction
+                'TransactionId' => $transactionId
+            )
+        ));
+
+        return $jsonData;
+    }
+
+    /**
+     * @return array
+     */
+    protected function buildRequestHeader()
+    {
+        return array(
+            'SpecVersion' => self::SPEC_VERSION,
+            'CustomerId' => $this->authenticationStrategy->getCustomerId(),
+            'RequestId' => Uuid::uuid(),
+            'RetryIndicator' => self::RETRY_INDICATOR
+        );
+    }
+}
