@@ -4,10 +4,6 @@ namespace Valiton\Payment\SaferpayBundle\Plugin;
 
 use JMS\Payment\CoreBundle\Plugin\Exception\FinancialException;
 use JMS\Payment\CoreBundle\Plugin\PluginInterface;
-use Payment\Saferpay\Data\PayCompleteResponse;
-use Payment\Saferpay\Data\PayConfirmParameter;
-use Payment\Saferpay\Data\PayConfirmParameterInterface;
-use Payment\Saferpay\Data\PayInitParameterInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Security\Core\Util\SecureRandom;
 use JMS\Payment\CoreBundle\Model\ExtendedDataInterface;
@@ -17,7 +13,6 @@ use JMS\Payment\CoreBundle\Model\PaymentInterface;
 use JMS\Payment\CoreBundle\Plugin\AbstractPlugin;
 use JMS\Payment\CoreBundle\Plugin\Exception\Action\VisitUrl;
 use JMS\Payment\CoreBundle\Plugin\Exception\ActionRequiredException;
-use Payment\Saferpay\Data\PayInitParameter;
 use Valiton\Payment\SaferpayBundle\Client\Client;
 use Valiton\Payment\SaferpayBundle\Utils\SaferpayFormatHelper;
 
@@ -30,6 +25,8 @@ use Valiton\Payment\SaferpayBundle\Utils\SaferpayFormatHelper;
 class SaferpayPlugin extends AbstractPlugin
 {
     const PAYMENT_SYSTEM_NAME = 'saferpay';
+
+    const SIGNS = '0123456789abcdefghijklmnopqrstuvwxyz';
 
     /**
      * @var Client
@@ -114,33 +111,46 @@ class SaferpayPlugin extends AbstractPlugin
      *
      * @param FinancialTransactionInterface $transaction
      * @param bool $retry
+     * @throws ActionRequiredException
      */
     public function approve(FinancialTransactionInterface $transaction, $retry)
     {
         $data = $transaction->getExtendedData();
         $payInitParameter = $this->createPayInitParameter($transaction);
 
-        if ($this->getRequest()->query->has(Client::PAY_INIT_PARAM_DATA) && $this->getRequest()->query->has(Client::PAY_INIT_PARAM_SIGNATURE)) {
-
+        if ($transaction->getTrackingId()) {
             try {
-                $payConfirmParameter = $this->client->verifyPayConfirm($this->getRequest()->query->get(Client::PAY_INIT_PARAM_DATA), $this->getRequest()->query->get(Client::PAY_INIT_PARAM_SIGNATURE));
+                $payConfirmParameter = $this->client->verifyPayConfirm($transaction);
                 $this->throwUnlessValidPayConfirm($payConfirmParameter, $payInitParameter);
 
             } catch(\Exception $e) {
                 $this->throwFinancialTransaction($transaction, $e);
             }
 
-            $transaction->setReferenceNumber($payConfirmParameter->getId());
+            $transaction->setReferenceNumber($payConfirmParameter['id']);
             $transaction->setProcessedAmount($transaction->getRequestedAmount());
             $transaction->setResponseCode(PluginInterface::RESPONSE_CODE_SUCCESS);
             $transaction->setReasonCode(PluginInterface::REASON_CODE_SUCCESS);
-            $data->set('token', $payConfirmParameter->getToken());
-            if (null != $payConfirmParameter->getCardrefid()) {
-                $data->set('CARDREFID', $payConfirmParameter->getCardrefid());
+            $data->set('token', $payConfirmParameter['token']);
+            if (isset($payConfirmParameter['cardrefid'])) {
+                $data->set('CARDREFID', $payConfirmParameter['cardrefid']);
+            }
+            if (isset($payConfirmParameter['cardmask'])) {
+                $data->set('CARDMASK', $payConfirmParameter['cardmask']);
+            }
+            if (isset($payConfirmParameter['cardbrand'])) {
+                $data->set('CARDBRAND', $payConfirmParameter['cardbrand']);
+            }
+            if (isset($payConfirmParameter['cardvalidmonth'])) {
+                $data->set('CARDVALIDMONTH', $payConfirmParameter['cardvalidmonth']);
+            }
+            if (isset($payConfirmParameter['cardvalidyear'])) {
+                $data->set('CARDVALIDYEAR', $payConfirmParameter['cardvalidyear']);
             }
 
+
         } else {
-            $url = $this->client->createPayInit($payInitParameter);
+            $url = $this->client->createPayInit($payInitParameter, $transaction);
 
             $actionRequest = new ActionRequiredException('User has not yet authorized the transaction.');
             $actionRequest->setFinancialTransaction($transaction);
@@ -171,9 +181,9 @@ class SaferpayPlugin extends AbstractPlugin
     {
         $referenceNumber = $transaction->getPayment()->getApproveTransaction()->getReferenceNumber();
         try {
-            $payConfirmParameter = new PayConfirmParameter();
-            $payConfirmParameter->setId($referenceNumber);
-            $payConfirmParameter->setAmount(SaferpayFormatHelper::formatAmount($transaction->getRequestedAmount()));
+            $payConfirmParameter = array();
+            $payConfirmParameter['id'] = $referenceNumber;
+            $payConfirmParameter['amount'] = SaferpayFormatHelper::formatAmount($transaction->getRequestedAmount());
             $payCompleteResponse = $this->client->payCompleteV2($payConfirmParameter);
             $this->throwUnlessSuccessPayComplete($payCompleteResponse);
 
@@ -181,7 +191,7 @@ class SaferpayPlugin extends AbstractPlugin
             $this->throwFinancialTransaction($transaction, $e);
         }
 
-        $transaction->setReferenceNumber($payCompleteResponse->getId());
+        $transaction->setReferenceNumber($referenceNumber);
         $transaction->setProcessedAmount($transaction->getRequestedAmount());
         $transaction->setResponseCode(PluginInterface::RESPONSE_CODE_SUCCESS);
         $transaction->setReasonCode(PluginInterface::REASON_CODE_SUCCESS);
@@ -215,7 +225,7 @@ class SaferpayPlugin extends AbstractPlugin
      * Create payment init parameter
      *
      * @param FinancialTransactionInterface $transaction
-     * @return PayInitParameter
+     * @return array
      */
     protected function createPayInitParameter(FinancialTransactionInterface $transaction)
     {
@@ -228,25 +238,30 @@ class SaferpayPlugin extends AbstractPlugin
         /** @var PaymentInstructionInterface $paymentInstruction */
         $paymentInstruction = $payment->getPaymentInstruction();
 
-        $payInitParameter = new PayInitParameter();
-        $payInitParameter->setSuccesslink($this->getReturnUrl($data));
-        $payInitParameter->setBacklink($this->getCancelUrl($data));
-        $payInitParameter->setFaillink($this->getErrorUrl($data));
-        $payInitParameter->setAmount(SaferpayFormatHelper::formatAmount($transaction->getRequestedAmount()));
-        $payInitParameter->setCurrency($paymentInstruction->getCurrency());
+        $payInitParameter = array();
+        $payInitParameter['successlink'] = $this->getReturnUrl($data);
+        $payInitParameter['backlink'] = $this->getCancelUrl($data);
+        $payInitParameter['faillink'] = $this->getErrorUrl($data);
+        $payInitParameter['amount'] = SaferpayFormatHelper::formatAmount($transaction->getRequestedAmount());
+        $payInitParameter['currency'] = $paymentInstruction->getCurrency();
         if ($this->cardrefid === 'random') {
             $random = new SecureRandom();
-            $cardrefid = bin2hex($random->nextBytes(20));
+            $cardrefid = '';
             if ($this->cardrefidPrefix !== null) {
-                $cardrefid = sprintf('%s%s', $this->cardrefidPrefix, $cardrefid);
+                $cardrefid = $this->cardrefidPrefix;
             }
-            $cardrefid = substr($cardrefid, 0, $this->cardrefidLength);
+            while (strlen($cardrefid) < $this->cardrefidLength) {
+                $bytes = unpack('C', $random->nextBytes(1));
+                if ($bytes[1] < strlen(self::SIGNS)) {
+                    $cardrefid .= substr(self::SIGNS, $bytes[1], 1);
+                }
+            }
         } else {
             $cardrefid = 'new';
         }
-        $payInitParameter->setCardrefid($cardrefid);
+        $payInitParameter['cardrefid'] = $cardrefid;
         foreach ($checkoutParameters as $field => $value) {
-            $payInitParameter->set($field, $value);
+            $payInitParameter[$field] = $value;
         }
         return $payInitParameter;
     }
@@ -271,14 +286,13 @@ class SaferpayPlugin extends AbstractPlugin
     /**
      * Throw until valid payment confirmation
      *
-     * @param PayConfirmParameterInterface $payConfirmParameter
-     * @param PayInitParameterInterface $payInitParameter
-     * @return bool
+     * @param array $payConfirmParameter
+     * @param array $payInitParameter
      * @throws \Exception
      */
-    protected function throwUnlessValidPayConfirm(PayConfirmParameterInterface $payConfirmParameter, PayInitParameterInterface $payInitParameter)
+    protected function throwUnlessValidPayConfirm(array $payConfirmParameter, array $payInitParameter)
     {
-        $valid = $payConfirmParameter->getAmount() == (string) $payInitParameter->getAmount() && $payConfirmParameter->getCurrency() == $payInitParameter->getCurrency();
+        $valid = $payConfirmParameter['amount'] == (string) $payInitParameter['amount'] && $payConfirmParameter['currency'] == $payInitParameter['currency'];
         if (!$valid) {
             throw new \Exception('Invalid.');
         }
@@ -287,14 +301,14 @@ class SaferpayPlugin extends AbstractPlugin
     /**
      * Throw until success payment complete response
      *
-     * @param PayCompleteResponse $payCompleteResponse
+     * @param array $payCompleteResponse
      * @throws \Exception
      */
-    protected function throwUnlessSuccessPayComplete(PayCompleteResponse $payCompleteResponse)
+    protected function throwUnlessSuccessPayComplete(array $payCompleteResponse)
     {
-        if ($payCompleteResponse->getResult() != '0') {
-            // Payment was not successfully
-            throw new \Exception($payCompleteResponse->getMessage());
+        if ($payCompleteResponse['result'] != '200') {
+            // Payment was not successful
+            throw new \Exception('PayComplete error');
         }
     }
 

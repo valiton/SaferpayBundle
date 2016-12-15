@@ -2,8 +2,7 @@
 
 namespace Valiton\Payment\SaferpayBundle\Client\Authentication;
 
-use Payment\Saferpay\Data\DataInterface;
-use Valiton\Payment\SaferpayBundle\Client\Authentication\AuthenticationStrategyInterface;
+use Guzzle\Http\Message\RequestInterface;
 
 /**
  * TokenAuthenticationStrategy
@@ -38,15 +37,18 @@ class TokenAuthenticationStrategy implements AuthenticationStrategyInterface
     /**
      * Add authentication fields
      *
+     * @param RequestInterface $response
      * @param array $data
      * @param bool $withPassword
      * @return void
      */
-    public function authenticate(array &$data, $withPassword = false)
+    public function authenticate(RequestInterface $response = null, array &$data = null, $withPassword = false)
     {
-        $data['ACCOUNTID'] = $this->account;
-        if ($withPassword) {
-            $data['spPassword'] = $this->password;
+        if ($data) {
+            $data['ACCOUNTID'] = $this->account;
+            if ($withPassword) {
+                $data['spPassword'] = $this->password;
+            }
         }
     }
 
