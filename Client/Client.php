@@ -4,11 +4,6 @@ namespace Valiton\Payment\SaferpayBundle\Client;
 
 
 use JMS\Payment\CoreBundle\Model\FinancialTransactionInterface;
-use Payment\Saferpay\Data\Collection\CollectionItemInterface;
-use Payment\Saferpay\Data\PayCompleteParameter;
-use Payment\Saferpay\Data\PayCompleteResponse;
-use Payment\Saferpay\Data\PayConfirmParameter;
-use Payment\Saferpay\Data\PayInitParameterWithDataInterface;
 use Psr\Log\LoggerInterface;
 use Valiton\Payment\SaferpayBundle\Client\Authentication\AuthenticationStrategyInterface;
 
@@ -18,9 +13,8 @@ use Valiton\Payment\SaferpayBundle\Client\Authentication\AuthenticationStrategyI
  *
  * @package Valiton\Payment\SaferpayBundle\Client
  * @author Sven Cludius<sven.cludius@valiton.com>
- * @see Payment\Saferpay\Saferpay
  */
-class Client 
+class Client
 {
     const PAY_INIT_PARAM_DATA = 'DATA';
     const PAY_INIT_PARAM_SIGNATURE = 'SIGNATURE';
@@ -64,14 +58,13 @@ class Client
     /**
      * Create payment init
      *
-     * @param CollectionItemInterface $payInitParameter
+     * @param array $payInitParameter
      * @param FinancialTransactionInterface $transaction
-     * @return PayConfirmParameter
+     * @return string
      */
-    public function createPayInit(CollectionItemInterface $payInitParameter, FinancialTransactionInterface $transaction)
+    public function createPayInit(array $payInitParameter, FinancialTransactionInterface $transaction)
     {
-        $data = $payInitParameter->getData();
-        $requestData = $this->saferpayDataHelper->buildPayInitObj($data);
+        $requestData = $this->saferpayDataHelper->buildPayInitObj($payInitParameter);
 
         $response = $this->sendApiRequest($this->saferpayDataHelper->getPayInitUrl(), $requestData);
         $responseData = $this->saferpayDataHelper->getDataFromResponse($response);
@@ -86,10 +79,10 @@ class Client
      * Verify payment confirm
      *
      * @param FinancialTransactionInterface $transaction
-     * @param  CollectionItemInterface $payConfirmParameter
-     * @return CollectionItemInterface
+     * @param array $payConfirmParameter
+     * @return array
      */
-    public function verifyPayConfirm(FinancialTransactionInterface $transaction, CollectionItemInterface $payConfirmParameter = null)
+    public function verifyPayConfirm(FinancialTransactionInterface $transaction, array $payConfirmParameter = null)
     {
         $requestData = $this->saferpayDataHelper->buildPayConfirmObj($transaction->getTrackingId());
 
@@ -97,14 +90,49 @@ class Client
         $responseData = $this->saferpayDataHelper->getDataFromResponse($response);
 
         if (null == $payConfirmParameter) {
-            $payConfirmParameter = new PayConfirmParameter();
+            $payConfirmParameter = array();
         }
 
-        $payConfirmParameter->set('ID',$responseData["Transaction"]["Id"] );
-        $payConfirmParameter->set('AMOUNT',$responseData["Transaction"]["Amount"]["Value"] );
-        $payConfirmParameter->set('CURRENCY',$responseData["Transaction"]["Amount"]["CurrencyCode"] );
-        $payConfirmParameter->set('TOKEN', $transaction->getTrackingId());
-        $payConfirmParameter->set('CARDREFID', $responseData["PaymentMeans"]["DisplayText"]);
+        $payConfirmParameter['id'] = $responseData['Transaction']['Id'];
+        $payConfirmParameter['amount'] = $responseData['Transaction']['Amount']['Value'];
+        $payConfirmParameter['currency'] = $responseData['Transaction']['Amount']['CurrencyCode'];
+        $payConfirmParameter['token'] = $transaction->getTrackingId();
+
+        if (isset($responseData['PaymentMeans'])
+            && isset($responseData['PaymentMeans']['Brand'])
+            && isset($responseData['PaymentMeans']['Brand']['PaymentMethod'])
+        ) {
+            $payConfirmParameter['cardbrand'] = $responseData['PaymentMeans']['Brand']['PaymentMethod'];
+        }
+
+        if (isset($responseData['PaymentMeans'])
+            && isset($responseData['PaymentMeans']['DisplayText'])
+        ) {
+            $payConfirmParameter['cardmask'] = $responseData['PaymentMeans']['DisplayText'];
+        }
+
+        if (isset($responseData['PaymentMeans'])
+            && isset($responseData['PaymentMeans']['Card'])
+            && isset($responseData['PaymentMeans']['Card']['ExpYear'])
+        ) {
+            $payConfirmParameter['cardvalidyear'] = $responseData['PaymentMeans']['Card']['ExpYear'];
+        }
+
+        if (isset($responseData['PaymentMeans'])
+            && isset($responseData['PaymentMeans']['Card'])
+            && isset($responseData['PaymentMeans']['Card']['ExpMonth'])
+        ) {
+            $payConfirmParameter['cardvalidmonth'] = $responseData['PaymentMeans']['Card']['ExpMonth'];
+        }
+
+        if (isset($responseData['RegistrationResult'])
+            && isset($responseData['RegistrationResult']['Success'])
+            && $responseData['RegistrationResult']['Success']
+            && isset($responseData['RegistrationResult']['Alias'])
+            && isset($responseData['RegistrationResult']['Alias']['Id'])
+        ) {
+            $payConfirmParameter['cardrefid'] = $responseData['RegistrationResult']['Alias']['Id'];
+        }
 
         return $payConfirmParameter;
     }
@@ -112,37 +140,37 @@ class Client
     /**
      * Pay complete v2
      *
-     * @param  CollectionItemInterface            $payConfirmParameter
-     * @param  CollectionItemInterface            $payCompleteParameter
-     * @param  CollectionItemInterface            $payCompleteResponse
-     * @return CollectionItemInterface
+     * @param  array            $payConfirmParameter
+     * @param  array            $payCompleteParameter
+     * @param  array            $payCompleteResponse
+     * @return array
      * @throws \Exception
      */
     public function payCompleteV2(
-        CollectionItemInterface $payConfirmParameter,
-        CollectionItemInterface $payCompleteParameter = null,
-        CollectionItemInterface $payCompleteResponse = null
+        array $payConfirmParameter,
+        array $payCompleteParameter = null,
+        array $payCompleteResponse = null
     ) {
-        if (null == $payConfirmParameter->get('ID')) {
+        if (!isset($payConfirmParameter['id'])) {
             $this->getLogger()->critical('Saferpay: call confirm before complete!');
             throw new \Exception('Saferpay: call confirm before complete!');
         }
 
         if (null == $payCompleteParameter) {
-            $payCompleteParameter = new PayCompleteParameter();
+            $payCompleteParameter = array();
         }
-        $payCompleteParameter->set(self::PAY_CONFIRM_PARAM_ID, $payConfirmParameter->get(self::PAY_CONFIRM_PARAM_ID));
-        $payCompleteParameter->set(self::PAY_CONFIRM_PARAM_AMOUNT, $payConfirmParameter->get(self::PAY_CONFIRM_PARAM_AMOUNT));
+        $payCompleteParameter['id'] = $payConfirmParameter['id'];
+        $payCompleteParameter['amount'] = $payConfirmParameter['amount'];
 
-        $requestData = $this->saferpayDataHelper->buildPayCompleteObj($payCompleteParameter->getId());
+        $requestData = $this->saferpayDataHelper->buildPayCompleteObj($payCompleteParameter['id']);
 
         $response = $this->sendApiRequest($this->saferpayDataHelper->getPayCompleteUrl(), $requestData);
 
         if (null == $payCompleteResponse) {
-            $payCompleteResponse = new PayCompleteResponse();
+            $payCompleteResponse = array();
         }
 
-        $payCompleteResponse->setResult($response->getStatusCode());
+        $payCompleteResponse['result'] = $response->getStatusCode();
 
         return $payCompleteResponse;
     }
@@ -185,7 +213,7 @@ class Client
     /**
      * get logger
      *
-     * @return \Symfony\Component\HttpKernel\Log\LoggerInterface
+     * @return LoggerInterface
      */
     public function getLogger()
     {

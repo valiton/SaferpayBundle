@@ -179,36 +179,39 @@ class SaferpayJsonObjHelper implements SaferpayDataHelperInterface
      * @param array $data
      * @return string
      */
-    protected function buildPaymentPageInitializeObj(array $data)
+    protected function  buildPaymentPageInitializeObj(array $data)
     {
-        $jsonData = json_encode(array(
+        $jsonData = array(
             'RequestHeader' => $this->buildRequestHeader(),
 
             'TerminalId' => $this->authenticationStrategy->getTerminalId(),
 
             'Payment' => array(
                 'Amount' => array(
-                    'Value' => $data['AMOUNT'],
-                    'CurrencyCode' => $data['CURRENCY']
+                    'Value' => $data['amount'],
+                    'CurrencyCode' => $data['currency']
                 ),
 
-                'OrderId' => $data['ORDERID'], // optional
-                'Description' => $data['DESCRIPTION']
+                'OrderId' => $data['orderid'], // optional
+                'Description' => $data['description']
             ),
 
             'ReturnUrls' => array(
-                'Success' => $data['SUCCESSLINK'],
-                'Fail' => $data['FAILLINK'],
-                'Abort' => $data['BACKLINK'] // optional
-            ),
-
-            // optional
-            'Payer' => array(
-                'LanguageCode' => $data['LANGID']
+                'Success' => $data['successlink'],
+                'Fail' => $data['faillink'],
+                'Abort' => $data['backlink'] // optional
             )
-        ));
+        );
 
-        return $jsonData;
+        if (isset($data['cardrefid'])) {
+            if ('new' == $data['cardrefid']) {
+                $jsonData['RegisterAlias'] = array('IdGenerator' => 'RANDOM');
+            } else {
+                $jsonData['RegisterAlias'] = array('IdGenerator' => 'MANUAL', 'Id' => $data['cardrefid']);
+            }
+        }
+
+        return json_encode($jsonData);
     }
 
     /**

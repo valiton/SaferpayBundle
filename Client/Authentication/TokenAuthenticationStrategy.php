@@ -2,8 +2,6 @@
 
 namespace Valiton\Payment\SaferpayBundle\Client\Authentication;
 
-use Payment\Saferpay\Data\DataInterface;
-use Valiton\Payment\SaferpayBundle\Client\Authentication\AuthenticationStrategyInterface;
 use Guzzle\Http\Message\RequestInterface;
 
 /**
