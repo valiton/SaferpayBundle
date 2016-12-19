@@ -11,7 +11,7 @@
         <parameter key="valiton_payment_saferpay.saferpay_plugin.class">Valiton\Payment\SaferpayBundle\Plugin\SaferpayPlugin</parameter>
         <parameter key="valiton_payment_saferpay.form.valiton_payment_saferpay_type.class">Valiton\Payment\SaferpayBundle\Form\SaferpayType</parameter>
         <parameter key="valiton_payment_saferpay.saferpayjsonobjhelper.class">Valiton\Payment\SaferpayBundle\Client\SaferpayJsonObjHelper</parameter>
-        <parameter key="valiton_payment_saferpay.jsonapi.baseurl">https://www.saferpay.com/api/Payment/v1</parameter>
+        <parameter key="valiton_payment_saferpay.jsonapi.baseurl.prod">https://www.saferpay.com/api/Payment/v1</parameter>
         <parameter key="valiton_payment_saferpay.jsonapi.baseurl.test">https://test.saferpay.com/api/Payment/v1</parameter>
         <parameter key="valiton_payment_saferpay.jsonapi.paymentpage.initialize">/PaymentPage/Initialize</parameter>
         <parameter key="valiton_payment_saferpay.jsonapi.paymentpage.assert">/PaymentPage/Assert</parameter>
@@ -32,7 +32,7 @@
         <service id="valiton_payment_saferpay.saferpayjsonobjhelper" class="%valiton_payment_saferpay.saferpayjsonobjhelper.class%">
             <argument type="service" id="valiton_payment_saferpay.authentication_strategy" />
 
-            <argument type="string">%valiton_payment_saferpay.jsonapi.baseurl.test%</argument>
+            <argument type="string">%valiton_payment_saferpay.jsonapi.baseurl%</argument>
             <argument type="string">%valiton_payment_saferpay.jsonapi.paymentpage.initialize%</argument>
             <argument type="string">%valiton_payment_saferpay.jsonapi.paymentpage.assert%</argument>
             <argument type="string">%valiton_payment_saferpay.jsonapi.transaction.capture%</argument>

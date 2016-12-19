@@ -28,5 +28,14 @@ class ValitonPaymentSaferpayExtension extends Extension
 
         $loader = new Loader\XmlFileLoader($container, new FileLocator(__DIR__.'/../Resources/config'));
         $loader->load('services.xml');
+
+        if ($config['saferpay_test']) {
+            $container->setParameter(
+                'valiton_payment_saferpay.jsonapi.baseurl',
+                $container->getParameter('valiton_payment_saferpay.jsonapi.baseurl.test')
+            );
+        } else {
+            $container->setParameter('valiton_payment_saferpay.jsonapi.baseurl', $container->getParameter('valiton_payment_saferpay.jsonapi.baseurl.prod'));
+        }
     }
 }
