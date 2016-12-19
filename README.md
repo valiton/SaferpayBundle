@@ -1,6 +1,6 @@
 # Saferpay - Extension to the JMSPaymentCoreBundle providing access to Saferpay.
 
-This bundle now uses the new [Saferpay JSON API](http://saferpay.github.io/jsonapi/1.2/) 
+This bundle now uses the new [Saferpay JSON API](http://saferpay.github.io/jsonapi/1.2/)
 
 Installation
 ------------
