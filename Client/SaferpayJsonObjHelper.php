@@ -203,6 +203,10 @@ class SaferpayJsonObjHelper implements SaferpayDataHelperInterface
             )
         );
 
+        if ($data['isRecurringPayment']) {
+            $jsonData['Payment']['Recurring']['Initial'] = true;
+        }
+
         if (isset($data['cardrefid'])) {
             if ('new' == $data['cardrefid']) {
                 $jsonData['RegisterAlias'] = array('IdGenerator' => 'RANDOM');
