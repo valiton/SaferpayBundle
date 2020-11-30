@@ -69,7 +69,7 @@
 
         <service id="valiton_payment_saferpay.form.valiton_payment_saferpay_type" class="%valiton_payment_saferpay.form.valiton_payment_saferpay_type.class%">
             <tag name="payment.method_form_type" />
-            <tag name="form.type" />
+            <tag name="form.type" alias="saferpay" />
         </service>
 
     </services>
