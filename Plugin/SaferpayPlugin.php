@@ -5,7 +5,6 @@ namespace Valiton\Payment\SaferpayBundle\Plugin;
 use JMS\Payment\CoreBundle\Plugin\Exception\FinancialException;
 use JMS\Payment\CoreBundle\Plugin\PluginInterface;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\Security\Core\Util\SecureRandom;
 use JMS\Payment\CoreBundle\Model\ExtendedDataInterface;
 use JMS\Payment\CoreBundle\Model\FinancialTransactionInterface;
 use JMS\Payment\CoreBundle\Model\PaymentInstructionInterface;
@@ -247,13 +246,12 @@ class SaferpayPlugin extends AbstractPlugin
         $payInitParameter['isRecurringPayment'] = $this->isRecurringPayment($data);
 
         if ($this->cardrefid === 'random') {
-            $random = new SecureRandom();
             $cardrefid = '';
             if ($this->cardrefidPrefix !== null) {
                 $cardrefid = $this->cardrefidPrefix;
             }
             while (strlen($cardrefid) < $this->cardrefidLength) {
-                $bytes = unpack('C', $random->nextBytes(1));
+                $bytes = unpack('C', random_bytes(1));
                 if ($bytes[1] < strlen(self::SIGNS)) {
                     $cardrefid .= substr(self::SIGNS, $bytes[1], 1);
                 }
