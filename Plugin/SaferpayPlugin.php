@@ -244,6 +244,8 @@ class SaferpayPlugin extends AbstractPlugin
         $payInitParameter['faillink'] = $this->getErrorUrl($data);
         $payInitParameter['amount'] = SaferpayFormatHelper::formatAmount($transaction->getRequestedAmount());
         $payInitParameter['currency'] = $paymentInstruction->getCurrency();
+        $payInitParameter['isRecurringPayment'] = $this->isRecurringPayment($data);
+
         if ($this->cardrefid === 'random') {
             $random = new SecureRandom();
             $cardrefid = '';
@@ -367,6 +369,19 @@ class SaferpayPlugin extends AbstractPlugin
         }
 
         throw new \RuntimeException('You must configure a error url.');
+    }
+
+    /**
+     * @param ExtendedDataInterface $data
+     * @return bool
+     */
+    protected function isRecurringPayment(ExtendedDataInterface $data)
+    {
+        if ($data->has('is_recurring_payment')) {
+            return $data->get('is_recurring_payment');
+        }
+
+        return false;
     }
 
     /**
