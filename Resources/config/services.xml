@@ -5,7 +5,6 @@
            xsi:schemaLocation="http://symfony.com/schema/dic/services http://symfony.com/schema/dic/services/services-1.0.xsd">
 
     <parameters>
-        <parameter key="valiton_payment_saferpay.authentication_strategy.token.class">Valiton\Payment\SaferpayBundle\Client\Authentication\TokenAuthenticationStrategy</parameter>
         <parameter key="valiton_payment_saferpay.authentication_strategy.json.class">Valiton\Payment\SaferpayBundle\Client\Authentication\JsonAuthenticationStrategy</parameter>
         <parameter key="valiton_payment_saferpay.client.class">Valiton\Payment\SaferpayBundle\Client\Client</parameter>
         <parameter key="valiton_payment_saferpay.saferpay_plugin.class">Valiton\Payment\SaferpayBundle\Plugin\SaferpayPlugin</parameter>

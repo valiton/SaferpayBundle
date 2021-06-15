@@ -2,8 +2,6 @@
 
 namespace Valiton\Payment\SaferpayBundle\Client\Authentication;
 
-use Guzzle\Http\Message\RequestInterface;
-
 /**
  * AuthenticationStrategyInterface
  *
@@ -15,10 +13,7 @@ interface AuthenticationStrategyInterface
     /**
      * Add authentication fields
      *
-     * @param RequestInterface $request
-     * @param array $data
-     * @param bool $withPassword
-     * @return void
+     * @param array $options
      */
-    public function authenticate(RequestInterface $request = null, array &$data = null, $withPassword = false);
+    public function authenticate(array &$options);
 }

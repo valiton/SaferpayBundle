@@ -1,16 +1,10 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: d437861
- * Date: 10.11.16
- * Time: 13:59
- */
 
 namespace Valiton\Payment\SaferpayBundle\Client;
 
 
 use Valiton\Payment\SaferpayBundle\Client\Authentication\JsonAuthenticationStrategy;
-use Guzzle\Http\Message\Response;
+use Psr\Http\Message\ResponseInterface;
 use Faker\Provider\Uuid;
 
 /**
@@ -108,23 +102,22 @@ class SaferpayJsonObjHelper implements SaferpayDataHelperInterface
     }
 
     /**
-     * @param Response $response
+     * @param ResponseInterface $response
      * @return array
      */
-    public function getDataFromResponse(Response $response)
+    public function getDataFromResponse(ResponseInterface $response)
     {
         return json_decode($response->getBody(), true);
     }
 
     /**
-     * @param Response $response
+     * @param ResponseInterface $response
      * @return string
      */
-    public function tryGetErrorInfoFromResponse(Response $response)
+    public function tryGetErrorInfoFromResponse(ResponseInterface $response)
     {
         $errorInfo = "";
-        if (strtolower($response->getContentType()) == strtolower($this->contentTypeHeader))
-        {
+        if (strtolower($response->getHeaderLine('Content-Type')) === strtolower($this->contentTypeHeader)) {
             $responseData = $this->getDataFromResponse($response);
             $errorInfo = 'ErrorName: ' . $responseData['ErrorName'] . ' ErrorMessage: ' . $responseData['ErrorMessage'];
             if (array_key_exists('ErrorDetail', $responseData))
@@ -208,7 +201,7 @@ class SaferpayJsonObjHelper implements SaferpayDataHelperInterface
         }
 
         if (isset($data['cardrefid'])) {
-            if ('new' == $data['cardrefid']) {
+            if ('new' === $data['cardrefid']) {
                 $jsonData['RegisterAlias'] = array('IdGenerator' => 'RANDOM');
             } else {
                 $jsonData['RegisterAlias'] = array('IdGenerator' => 'MANUAL', 'Id' => $data['cardrefid']);
