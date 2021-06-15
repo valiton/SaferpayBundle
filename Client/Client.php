@@ -4,12 +4,13 @@ namespace Valiton\Payment\SaferpayBundle\Client;
 
 
 use JMS\Payment\CoreBundle\Model\FinancialTransactionInterface;
+use Psr\Http\Message\ResponseInterface;
 use Psr\Log\LoggerInterface;
 use Valiton\Payment\SaferpayBundle\Client\Authentication\AuthenticationStrategyInterface;
 
 
 /**
- * Client - inspeared by Payment\Saferpay\Saferpay class
+ * Client - inspired by Payment\Saferpay\Saferpay class
  *
  * @package Valiton\Payment\SaferpayBundle\Client
  * @author Sven Cludius<sven.cludius@valiton.com>
@@ -89,7 +90,7 @@ class Client
         $response = $this->sendApiRequest($this->saferpayDataHelper->getPayConfirmUrl(), $requestData);
         $responseData = $this->saferpayDataHelper->getDataFromResponse($response);
 
-        if (null == $payConfirmParameter) {
+        if (null === $payConfirmParameter) {
             $payConfirmParameter = array();
         }
 
@@ -156,7 +157,7 @@ class Client
             throw new \Exception('Saferpay: call confirm before complete!');
         }
 
-        if (null == $payCompleteParameter) {
+        if (null === $payCompleteParameter) {
             $payCompleteParameter = array();
         }
         $payCompleteParameter['id'] = $payConfirmParameter['id'];
@@ -166,7 +167,7 @@ class Client
 
         $response = $this->sendApiRequest($this->saferpayDataHelper->getPayCompleteUrl(), $requestData);
 
-        if (null == $payCompleteResponse) {
+        if (null === $payCompleteResponse) {
             $payCompleteResponse = array();
         }
 
@@ -180,7 +181,7 @@ class Client
      *
      * @param string $url
      * @param string $data
-     * @return \Guzzle\Http\Message\Response
+     * @return ResponseInterface;
      * @throws \Exception
      */
     protected function sendApiRequest($url, $data)
@@ -188,20 +189,24 @@ class Client
         $this->getLogger()->debug($url);
         $this->getLogger()->debug($data);
 
-        $client = new \Guzzle\Http\Client();
-        $client->setBaseUrl($url);
-        $client->setDefaultOption('exceptions', false);
+        $client = new \GuzzleHttp\Client();
 
-        $request = $client->post();
-        $request->setHeaders($this->saferpayDataHelper->getNecessaryRequestHeaders());
-        $this->authenticationStrategy->authenticate($request);
-        $request->setBody($data);
+        $options = [
+            'headers' => $this->saferpayDataHelper->getNecessaryRequestHeaders(),
+            'body' => $data,
+        ];
 
-        $response = $request->send();
+        $this->authenticationStrategy->authenticate($options);
+
+        $response = $client->request(
+            'POST',
+            $url,
+            $options
+        );
 
         $this->getLogger()->debug((string) $response->getBody());
 
-        if ($response->getStatusCode() != 200) {
+        if ($response->getStatusCode() !== 200) {
             $errorInfo = $this->saferpayDataHelper->tryGetErrorInfoFromResponse($response);
             $this->getLogger()->critical('Saferpay: request failed with statuscode: ' . $response->getStatusCode() . '! ' . $errorInfo);
             throw new \Exception('Saferpay: request failed with statuscode: ' . $response->getStatusCode() . '! ' . $errorInfo);
@@ -211,8 +216,6 @@ class Client
     }
 
     /**
-     * get logger
-     *
      * @return LoggerInterface
      */
     public function getLogger()
@@ -221,9 +224,7 @@ class Client
     }
 
     /**
-     * set logger
-     *
-     * @param \Symfony\Component\HttpKernel\Log\LoggerInterface $logger
+     * @param LoggerInterface $logger
      */
     public function setLogger($logger)
     {

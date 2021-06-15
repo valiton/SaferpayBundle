@@ -2,7 +2,7 @@
 
 namespace Valiton\Payment\SaferpayBundle\Client;
 
-use Guzzle\Http\Message\Response;
+use Psr\Http\Message\ResponseInterface;
 
 interface SaferpayDataHelperInterface
 {
@@ -25,16 +25,16 @@ interface SaferpayDataHelperInterface
     public function buildPayCompleteObj($transactionId);
 
     /**
-     * @param Response $response
+     * @param ResponseInterface $response
      * @return array
      */
-    public function getDataFromResponse(Response $response);
+    public function getDataFromResponse(ResponseInterface $response);
 
     /**
-     * @param Response $response
+     * @param ResponseInterface $response
      * @return string
      */
-    public function tryGetErrorInfoFromResponse(Response $response);
+    public function tryGetErrorInfoFromResponse(ResponseInterface $response);
 
     /**
      * @return string

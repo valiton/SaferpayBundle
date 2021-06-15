@@ -46,14 +46,15 @@ class JsonAuthenticationStrategy implements AuthenticationStrategyInterface
     }
 
     /**
-     * @param RequestInterface $request
-     * @param array $data
-     * @param bool $withPassword
+     * @param array $options
      */
-    public function authenticate(RequestInterface $request = null, array &$data = null, $withPassword = false)
+    public function authenticate(array &$options = null)
     {
-        if ($request) {
-            $request->setAuth($this->apiKey, $this->apiPwd, 'Basic');
+        if ($options) {
+            $options['auth'] = [
+                $this->apiKey,
+                $this->apiPwd,
+            ];
         }
     }
 
