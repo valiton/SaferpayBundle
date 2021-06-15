@@ -17,8 +17,8 @@ class Configuration implements ConfigurationInterface
      */
     public function getConfigTreeBuilder()
     {
-        $treeBuilder = new TreeBuilder('valiton_payment_saferpay');
-        $treeBuilder->getRootNode()
+        $treeBuilder = new TreeBuilder();
+        $treeBuilder->root('valiton_payment_saferpay')
             ->children()
                 ->scalarNode('account')->isRequired()->end()
                 ->scalarNode('jsonapi_key')->isRequired()->end()
