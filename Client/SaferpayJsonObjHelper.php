@@ -58,14 +58,15 @@ class SaferpayJsonObjHelper implements SaferpayDataHelperInterface
      * @param string $contentTypeHeader
      * @param string $acceptHeader
      */
-    function __construct(JsonAuthenticationStrategy $authenticationStrategy,
-                         $baseUrl,
-                         $paymentPageInitializeUrl,
-                         $paymentPageAssertUrl,
-                         $transactionCaptureUrl,
-                         $contentTypeHeader,
-                         $acceptHeader)
-    {
+    function __construct(
+        JsonAuthenticationStrategy $authenticationStrategy,
+        $baseUrl,
+        $paymentPageInitializeUrl,
+        $paymentPageAssertUrl,
+        $transactionCaptureUrl,
+        $contentTypeHeader,
+        $acceptHeader
+    ) {
         $this->authenticationStrategy = $authenticationStrategy;
         $this->paymentPageInitializeUrl = $baseUrl . $paymentPageInitializeUrl;
         $this->paymentPageAssertUrl = $baseUrl . $paymentPageAssertUrl;
@@ -120,11 +121,9 @@ class SaferpayJsonObjHelper implements SaferpayDataHelperInterface
         if (strtolower($response->getHeaderLine('Content-Type')) === strtolower($this->contentTypeHeader)) {
             $responseData = $this->getDataFromResponse($response);
             $errorInfo = 'ErrorName: ' . $responseData['ErrorName'] . ' ErrorMessage: ' . $responseData['ErrorMessage'];
-            if (array_key_exists('ErrorDetail', $responseData))
-            {
+            if (array_key_exists('ErrorDetail', $responseData)) {
                 $errorInfo .= ' ErrorDetail:';
-                foreach ($responseData['ErrorDetail'] as $detail)
-                {
+                foreach ($responseData['ErrorDetail'] as $detail) {
                     $errorInfo .= ' ' . $detail;
                 }
             }
@@ -217,12 +216,10 @@ class SaferpayJsonObjHelper implements SaferpayDataHelperInterface
      */
     protected function buildPaymentPageAssertObj($token)
     {
-        $jsonData = json_encode(array(
+        return json_encode(array(
             'RequestHeader' => $this->buildRequestHeader(),
             'Token' => $token
         ));
-
-        return $jsonData;
     }
 
     /**
@@ -231,15 +228,13 @@ class SaferpayJsonObjHelper implements SaferpayDataHelperInterface
      */
     protected function buildTransactionCaptureObj($transactionId)
     {
-        $jsonData = json_encode(array(
+        return json_encode(array(
             'RequestHeader' => $this->buildRequestHeader(),
             "TransactionReference" => array(
                 // user either TransactionId or OrderId to reference the transaction
                 'TransactionId' => $transactionId
             )
         ));
-
-        return $jsonData;
     }
 
     /**

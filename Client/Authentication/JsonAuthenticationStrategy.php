@@ -3,8 +3,6 @@
 namespace Valiton\Payment\SaferpayBundle\Client\Authentication;
 
 
-use Guzzle\Http\Message\RequestInterface;
-
 class JsonAuthenticationStrategy implements AuthenticationStrategyInterface
 {
     /**
@@ -69,13 +67,10 @@ class JsonAuthenticationStrategy implements AuthenticationStrategyInterface
 
         // format: 'customerId-terminalId'
         $tmp = explode('-', $this->account);
-        if (count($tmp) == 2)
-        {
+        if (count($tmp) == 2) {
             $this->customerId = $tmp[0];
             $this->terminalId = $tmp[1];
-        }
-        else
-        {
+        } else {
             $this->customerId = "";
             $this->terminalId = "";
         }
