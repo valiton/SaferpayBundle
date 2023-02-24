@@ -61,7 +61,7 @@
             <!-- Note: Inject request to enable fetching saferpay response sending to redirect url directly
                 In Symfony 2.4 we have to inject request stack -->
             <call method="setRequest">
-                <argument type="service" id="request" on-invalid="null" strict="false" />
+                <argument type="service" id="request" on-invalid="null" />
             </call>
             <tag name="payment.plugin" />
         </service>
